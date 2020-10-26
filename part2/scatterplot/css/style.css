@@ -50,7 +50,10 @@ html,body {
 }
 
 .point {
-    fill: #1f77b4;
+    fill: #4d25ff;
+    fill-opacity: .5;
+    stroke: #fff;
+    stroke-width: .5px;
 }
 
 #tooltip{

@@ -13,7 +13,10 @@
 }
 
 circle {
-    fill: #db57ec3b
+    fill: #0202023b;
+    fill-opacity: .5;
+    stroke: #fff;
+    stroke-width: .5px;
 }
 text {
     font-family: "Open Sans";

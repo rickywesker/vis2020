@@ -19,12 +19,41 @@ function set_ui() {
         .style("font-family", fontFamily);
 }
 
-function draw_main() {
+
+
+var radius = d3.scaleSqrt()
+        .domain([0,250])
+        .range([0,20])
+
+
+function draw_main(map,Field) {
+    var allIn = d3.map(data,function(d){return d.Institution;});
+    ins = Object.keys(map).sort();
+    var allGroup = d3.map(data, function(d){return(d.name)}).keys()
+    //console.log(allGroup)
+    //console.log(ins)
+    //var myColor = d3.scaleOrdinal().domain(allIn).range(d3.schemeSet2);
     let padding = {'left': 0.2*width, 'bottom': 0.1*height, 'top': 0.2*height, 'right': 0.1*width};
     let svg = d3.select('#container')
         .select('svg')
         .attr('width', width)
         .attr('height', height);
+    
+   
+    
+    
+    // button
+    d3.select("#selectButton")
+      .selectAll('myOptions')
+     	.data(ins)
+      .enter()
+    	.append('option')
+      .text(function (d) { return d; }) // text showed in the menu
+      .attr("value", function (d) { return d; }) // corresponding value returned by the button
+
+      var myColor = d3.scaleOrdinal()
+      .domain(ins)
+      .range(d3.schemeSet2);
 
     // title
     svg.append('g')
@@ -83,7 +112,7 @@ function draw_main() {
         .text(y_attr);
 
     // points
-    svg.append('g')
+    var first = svg.append('g')
         .selectAll('circle')
         .data(data)
         .enter().append('circle')
@@ -93,7 +122,11 @@ function draw_main() {
             return x(parseInt(d[x_attr]));
         })
         .attr('cy', (d, i) => y(parseInt(d[y_attr])))
-        .attr('r', 3)
+        .attr('r', (d, i)=>{
+            return radius(parseInt(d['Publications']));
+        })
+        
+        
         .on('mouseover', (e, d) => {
 
             //console.log('e', e, 'd', d)
@@ -104,6 +137,7 @@ function draw_main() {
             let grad_year = d['Ph.D. Graduation Year'];
             let grad_school = d['Ph.D. Graduate School'];
             let pubs = d['Publications'];
+            let hindex = d['H-index'];
             //console.log('data', d);
 
 
@@ -111,7 +145,8 @@ function draw_main() {
                 + '<tr><td>Institution</td><td>'+ institution + '</td></tr>'
                 + '<tr><td>Ph.D. Graduation Year</td><td>'+ grad_year + '</td></tr>'
                 + '<tr><td>Ph.D. Graduation School</td><td>'+ grad_school + '</td></tr>'
-                + '<tr><td>Publications</td><td>'+ pubs + '</td></tr></table>';
+                + '<tr><td>Publications</td><td>'+ pubs + '</td></tr>'
+                + '<tr><td>H-index</td><td>'+hindex + '</td></tr></table>';
             
             // tooltip
             let tooltip = d3.select('#tooltip');            
@@ -127,16 +162,103 @@ function draw_main() {
             let tooltip = d3.select('#tooltip');            
             tooltip.style('visibility', 'hidden');
         })
+
+
+        function update(selectedGroup) {
+
+            // Create new data with the selection?
+            var dataFilter = data.filter(function(d){
+                return d.Institution===selectedGroup})
+            console.log(dataFilter)
+            console.log(first)
+            // Give these new data to update line
+            //first.selectAll('circle').exit().remove();
+            svg.selectAll('circle').remove();
+            svg.append('g')
+                .selectAll('circle')
+                .data(dataFilter)
+                .enter().append('circle')
+                .attr('class', 'point')
+                .attr('cx', (d, i) => {
+                    //console.log('data', d); 
+                    return x(parseInt(d[x_attr]));
+                })
+                .attr('cy', (d, i) => y(parseInt(d[y_attr])))
+                .attr('r', (d, i)=>{
+                    return radius(parseInt(d['Publications']));
+                })
+                .style("fill", function(d){ return myColor(selectedGroup) })
+                .on('mouseover', (e, d) => {
+
+                    //console.log('e', e, 'd', d)
+        
+                    // show a tooltip
+                    let name = d['First Name'] + ' ' + d['Mid Name'] + ' ' + d['Last Name'];
+                    let institution = d['Institution'];
+                    let grad_year = d['Ph.D. Graduation Year'];
+                    let grad_school = d['Ph.D. Graduate School'];
+                    let pubs = d['Publications'];
+                    //console.log('data', d);
+        
+        
+                    let content = '<table><tr><td>Name</td><td>' + name + '</td></tr>' 
+                        + '<tr><td>Institution</td><td>'+ institution + '</td></tr>'
+                        + '<tr><td>Ph.D. Graduation Year</td><td>'+ grad_year + '</td></tr>'
+                        + '<tr><td>Ph.D. Graduation School</td><td>'+ grad_school + '</td></tr>'
+                        + '<tr><td>Publications</td><td>'+ pubs + '</td></tr></table>';
+                    
+                    // tooltip
+                    let tooltip = d3.select('#tooltip');            
+                    tooltip.html(content)
+                        .style('left', (x(parseInt(d[x_attr])) + 5) + 'px')
+                        .style('top', (y(parseInt(d[y_attr])) + 5)+ 'px')
+                        //.transition().duration(500)
+                        .style('visibility', 'visible');
+                })
+                .on('mouseout', (e, d) => {
+        
+                    // remove tooltip
+                    let tooltip = d3.select('#tooltip');            
+                    tooltip.style('visibility', 'hidden');
+                })
+            
+          }
+      
+          // When the button is changed, run the updateChart function
+          d3.select("#selectButton").on("change", function(d) {
+              // recover the option that has been chosen
+              var selectedOption = d3.select(this).property("value")
+              console.log(selectedOption)
+              // run the updateChart function with this selected option
+              update(selectedOption)
+          })
+
+
+
+
+
+       
+
 }
 
 function main() {
+    var Fields = ["Institution Index", "Last Name","Mid Name","First Name","Ph.D. Graduation Year","Ph.D. Graduate School","Research Interest","H-index","Citations","Publications","Publications Divided by Co-authors","Remarks","Collector"]
     d3.csv(data_file).then(function(DATA) {
         data = DATA;
-
+        var insMap = {};
+        data.forEach(function(d){
+            var ins = d.Institution;
+            insMap[ins] = []
+            Fields.forEach(function(field){›
+                insMap[ins].push(+d[field]);
+            })
+        })
+        
         // remove data without x_attr or y_attr
         data = data.filter((d, i) => (d[x_attr] != '' && d[y_attr] != ''));
+
         set_ui();
-        draw_main();
+        draw_main(insMap,Fields);
     })
 }
 
